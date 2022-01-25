@@ -1,5 +1,7 @@
 # MVC 프레임워크
 
+>[김영한-스프링 MVC 1편](https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81-mvc-1#)
+
 ![Untitled](https://user-images.githubusercontent.com/75190035/150505352-b9345ad1-6f67-420f-9d44-807e8788a9b4.png)
 
 프런트 컨트롤러 도입 전
