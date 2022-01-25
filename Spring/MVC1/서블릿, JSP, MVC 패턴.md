@@ -1,5 +1,7 @@
 # 서블릿, JSP, MVC 패턴
 
+>[김영한-스프링 MVC 1편](https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81-mvc-1#)
+
 ## 회원 관리 웹 애플리케이션
 
 - 요구사항
