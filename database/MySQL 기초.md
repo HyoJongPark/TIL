@@ -299,3 +299,96 @@ SELECT topic.id AS topic_id,title,description,created,name,profile FROM topic LE
 출력되는 타입의 이름을 변경하고 싶은경우 `topic.id AS topic_id` 와 같이 작성하면 출력되는 이름만 변경된다.
 
 ---
+
+## SQL 계정 생성 및 권한 설정
+
+1. mysql 데이터베이스 사용
+
+```sql
+USE mysql
+```
+
+1. 계정 생성
+- **특정IP에서 접속 가능한 계정 생성**
+
+```java
+CREATE user '계정ID'@localhost identified by '비밀번호';
+```
+
+```java
+CREATE user '계정ID'@'%' identified by '비밀번호';
+```
+
+```java
+CREATE user '계정ID'@'IP 대역' identified by '비밀번호';
+```
+
+`'계정ID'@localhost` : `localhost` 로 설정하면, 로컬에서만 접속 가능
+
+`'계정ID'@'%'`             : `%` 로 설정하면, 외부 IP에서도 접속 가능
+
+`'계정ID'@'IP 대역'`   : 특정 `IP 대역` 을 설정하면, 해당 IP에서만 접속 가능
+
+- **특정 스키마에서 접속 가능하도록 설정(권한 설정)**
+
+스키마 권한제어에는 SQL 명령어 중 **DCL(Data Control Language)** 가 사용된다. DCL에는 `GRANT` 와 `REVOKE` 가 있다.
+
+```java
+grant select, delete on 스키마명.테이블명 to '계정ID'@'호스트';
+```
+
+```java
+grant all on 스키마명.테이블명 to '계정ID'@'호스트';
+```
+
+- 권한 제거
+
+```java
+revoke all on 스키마명.테이블명 from 계정ID@'호스트';
+```
+
+- 권한 조회
+
+```java
+show grants for 'testId'@'%';
+```
+
+- 조회 결과
+
+```java
++---------------------------------------------------+
+| Grants for testId@%                               |
++---------------------------------------------------+
+| GRANT USAGE ON *.* TO `testId`@`%`                |
+| GRANT ALL PRIVILEGES ON `mysql`.* TO `testId`@`%` |
++---------------------------------------------------+
+```
+
+- 계정 삭제
+
+```java
+DELETE FROM user where user='계정ID';
+```
+
+- 조회하기
+
+```java
+SELECT host, user, authentication_string from user;
+```
+
+여기서 `authentication_string` 은 비밀번호를 의미한다. (MySQL 5.7부터 변경됨)
+
+- 조회 결과
+
+```java
++-----------+------------------+------------------------------------------------------------------------+
+| host      | user             | authentication_string                                                  |
++-----------+------------------+------------------------------------------------------------------------+
+| %         | testId           | $A$005$7Zfk#8#pN97ba>z8rzBRbqE5CW6fsfr0rbIDUpceXQUfrSOwh.ZkqSj6B       |
+| %         | tobi_spring      | $A$005$`*sO%(G>D!?DZw/Wwpy3cBLjrQq1iYYQn6PH54QVaj68SUnUoiLjfU8         |
+| localhost | mysql.infoschema | $A$005$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED |
+| localhost | mysql.session    | $A$005$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED |
+| localhost | mysql.sys        | $A$005$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED |
+| localhost | root             | $A$005$W%<Hf7lC#btbL6xagXWebUPG4pIjmFXhudtPUca7UP6Syav3SYwKE82NK.      |
++-----------+------------------+------------------------------------------------------------------------+
+```
