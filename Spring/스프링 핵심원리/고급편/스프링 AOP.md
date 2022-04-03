@@ -3,6 +3,7 @@
 >[김영한-스프링 핵심원리 - 고급편](https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81-%ED%95%B5%EC%8B%AC-%EC%9B%90%EB%A6%AC-%EA%B3%A0%EA%B8%89%ED%8E%B8#)
 
 - [스프링 AOP - 개념](https://github.com/HyoJongPark/TIL/new/main/Spring/%EC%8A%A4%ED%94%84%EB%A7%81%20%ED%95%B5%EC%8B%AC%EC%9B%90%EB%A6%AC/%EA%B3%A0%EA%B8%89%ED%8E%B8#%EC%8A%A4%ED%94%84%EB%A7%81-aop---%EA%B0%9C%EB%85%90)
+- [스프링 AOP - 구현](https://github.com/HyoJongPark/TIL/edit/main/Spring/%EC%8A%A4%ED%94%84%EB%A7%81%20%ED%95%B5%EC%8B%AC%EC%9B%90%EB%A6%AC/%EA%B3%A0%EA%B8%89%ED%8E%B8/%EC%8A%A4%ED%94%84%EB%A7%81%20AOP.md#%EC%8A%A4%ED%94%84%EB%A7%81-aop---%EA%B5%AC%ED%98%84)
 
 # 스프링 AOP - 개념
 
@@ -157,3 +158,137 @@ AspectJ 컴파일러는 Aspect를 확인해서 해당 클래스가 적용 대상
     - AOP 기능을 구현하기 위해 만든 프록시 객체, 스프링에서 AOP는 JDK 동적 프록시 또는 CGLIB 프록시이다.
 
 ---
+
+# 스프링 AOP - 구현
+
+스프링 AOP를 구현하는 일반적인 방법은 `@Aspect` 를 사용하는 방법이다.
+
+```java
+public class Pointcuts {
+ //hello.springaop.app 패키지와 하위 패키지
+ @Pointcut("execution(* hello.aop.order..*(..))")
+ public void allOrder(){}
+ //타입 패턴이 *Service
+ @Pointcut("execution(* *..*Service.*(..))")
+ public void allService(){}
+ //allOrder && allService
+ @Pointcut("allOrder() && allService()")
+ public void orderAndService(){}
+}
+```
+
+- `@Pointcut` :
+    - `@Pointcut` 에 포인트컷 표현식을 사용한다.
+    - 메서드 이름과 파라미터를 합쳐서 포인터컷 시그니처라 한다.
+    - 메서드의 반환 타입은 `void`
+    - 코드의 내용은 비워둔다.
+    - `@Around` 어드바이스에서는 포인트컷을 직접 지정하거나, 포인트컷 시그니처를 사용해 포인트컷 기능을 사용할 수 있다.
+    - `allOrder() && allService()` 처럼 포인트컷을 조합 할 수도 있다.
+        - `&&` , `||` , `!` 3가지 조합이 가능하다.
+
+```java
+@Slf4j
+@Aspect
+public class AspectV6Advice {
+
+ @Around("hello.aop.order.aop.Pointcuts.orderAndService()")
+ public Object doTransaction(ProceedingJoinPoint joinPoint) throws Throwable {
+ try {
+	 //@Before
+	 log.info("[around][트랜잭션 시작] {}", joinPoint.getSignature());
+	 Object result = joinPoint.proceed();
+	 //@AfterReturning
+	 log.info("[around][트랜잭션 커밋] {}", joinPoint.getSignature());
+	 return result;
+ } catch (Exception e) {
+	 //@AfterThrowing
+	 log.info("[around][트랜잭션 롤백] {}", joinPoint.getSignature());
+	 throw e;
+ } finally {
+	 //@After
+	 log.info("[around][리소스 릴리즈] {}", joinPoint.getSignature());
+	 }
+ }
+
+ @Before("hello.aop.order.aop.Pointcuts.orderAndService()")
+ public void doBefore(JoinPoint joinPoint) {
+	 log.info("[before] {}", joinPoint.getSignature());
+ }
+
+ @AfterReturning(value = "hello.aop.order.aop.Pointcuts.orderAndService()", returning = "result")
+ public void doReturn(JoinPoint joinPoint, Object result) {
+	 log.info("[return] {} return={}", joinPoint.getSignature(), result);
+ }
+
+ @AfterThrowing(value = "hello.aop.order.aop.Pointcuts.orderAndService()", throwing = "ex")
+ public void doThrowing(JoinPoint joinPoint, Exception ex) {
+	 log.info("[ex] {} message={}", joinPoint.getSignature(), ex.getMessage());
+ }
+
+ @After(value = "hello.aop.order.aop.Pointcuts.orderAndService()")
+ public void doAfter(JoinPoint joinPoint) {
+	 log.info("[after] {}", joinPoint.getSignature());
+ }
+}
+```
+
+- `@Aspect` :
+    - `@Aspect`는 애스팩트라는 표식이지 컴포넌트 스캔 대상이 되는 것은 아니다. 별도로 스프링 빈으로 등록해야한다.
+- `@Around` :
+    - 애노테이션의 값이 포인트 컷이 된다.
+        - `execution(* hello.aop.order..*(..))` : `hello.aop.order` 패키지와 그 하위 패키지
+        - `hello.aop.order.aop.Pointcuts.orderAndService()` : 포인트컷 시그니처를 사용
+    - `@Around` 애노테이션이 붙은 `doLog` 메서드가 어드바이스가 된다.
+- `@Order(n)` :
+    - 어드바이스는 기본적으로 순서를 보장하지 않는다. 보장하고 싶다면 `@Aspect` 적용 단위로 `@Order` 애노테이션을 적용해야 한다.
+    - 클래스 단위로 적용 가능하기 때문에 하나의 애스펙트에 여러 어드바이스가 있으면 애스펙트를 별도의 클래스로 분리해야한다.
+    - 숫자가 작을 수록 먼저 실행된다.
+
+> 스프링 AOP는 AspectJ 문법을 차용하고, 프록시 방식의 AOP를 제공한다. 스프링 AOP를 사용할 때 `@Aspect` 애노테이션도 AspectJ가 제공하는 애노테이션이다.
+> 
+
+**JoinPoint 인터페이스의 주요 기능**
+
+- `getArgs()` : 메서드 인수를 반환
+- `getThis()` : 프록시 객체를 반환
+- `getTarget()` : 대상 객체를 반환
+- `getSignature()` : 어드바이스 메서드에 대한 설명을 반환
+- `toString()` :  어드바이스 방법에 대한 유용한 설명 인쇄
+
+**ProceedingJoinPoint 인터페이스의 주요 기능**
+
+- `proceed()` : 다음 어드바이스나 타겟 호출
+
+### 어드바이스 종류
+
+- `@Around` : 메서드 호출 전후에 수행, 가장 강력한 어드바이스, 조인 포인트 실행 여부 선택, 반환값 변환, 예외 변환 등이 가능
+    - 어드바이스의 첫 번째 바라미터는 `ProceedingJoinPoint` 를 사용해야 한다.
+    - `proceed()` 를 통해 대상을 실행하고, 여러번 실행할 수도 있다.
+- `@Before` : 조인 포인트 실행 이전에 실행
+    - `@Around` 와 달리 작업 흐름을 변경할 수 없다.
+    - `ProceedingJoinPoint.proceed()` 를 호출하지 않아도 자동으로 다음 타겟이 호출된다.
+        - 물론 예외 발생 시에는 호출되지 않는다.
+- `@AfterReturning` : 조인 포인트가 정상 완료 후 실행
+    - `returning` 속성에 사용된 이름은 어드바이스 메서드의 매개변수 이름과 일치해야 한다.
+    - `returning` 절에 지정된 타입의 값을 반환하는 메서드만 대상으로 실행한다.(부모 자식관계도 사용 가능)
+    - `@Around` 와 달리 반환되는 객체를 변경할 수 없다.
+- `@AfterThrowing` : 메서드가 예외를 던지는 경우 실행
+    - `throwing` 속성에 사용된 이름은 어드바이스 메서드의 매개변수 이름과 일치해야 한다.
+    - `throwing` 절에 지정된 타입과 맞은 예외를 대상으로 실행한다. (부모 자식 관계도 사용 가능)
+- `@After` : 조인 포인트가 정상 또는 예외에 관계없이 실행(finally)
+    - 정상 및 예외 반환 조건을 모두 처리한다.
+    - 일반적으로 리소스를 해제하는데 사용한다.
+
+실행 **순서**
+
+<img width="607" alt="Untitled" src="https://user-images.githubusercontent.com/75190035/161422666-17a1c818-56dc-4cc5-957b-b322cad107b8.png">
+
+> 좋은 설계는 제약이 있는 것이다.
+> 
+> 
+> `@Around` 만 있으면 될 것 같지만, 제약은 실수를 미연에 방지한다.
+> 
+> `@Around` 가 가장 넓은 기능을 제공하지만, `@Before, @After` 같은 어드바이스는 기능은 적지만 실수할 가능성이 낮고, 코드도 단순하다.
+> 
+> 큰 장점은 코드 작성 의도가 명확하게 들어난다는 점이다. `@Before` 애노테이션을 보는 순간 이 코드는 타겟 실행 전에 한정해서 어떤 일을 하는 코드라는 것을 인지 할 수 있게 될 것이다.
+>
