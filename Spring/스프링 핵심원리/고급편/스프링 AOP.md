@@ -2,9 +2,9 @@
 
 >[김영한-스프링 핵심원리 - 고급편](https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81-%ED%95%B5%EC%8B%AC-%EC%9B%90%EB%A6%AC-%EA%B3%A0%EA%B8%89%ED%8E%B8#)
 
-- [스프링 AOP - 개념](https://github.com/HyoJongPark/TIL/new/main/Spring/%EC%8A%A4%ED%94%84%EB%A7%81%20%ED%95%B5%EC%8B%AC%EC%9B%90%EB%A6%AC/%EA%B3%A0%EA%B8%89%ED%8E%B8#%EC%8A%A4%ED%94%84%EB%A7%81-aop---%EA%B0%9C%EB%85%90)
-- [스프링 AOP - 구현](https://github.com/HyoJongPark/TIL/edit/main/Spring/%EC%8A%A4%ED%94%84%EB%A7%81%20%ED%95%B5%EC%8B%AC%EC%9B%90%EB%A6%AC/%EA%B3%A0%EA%B8%89%ED%8E%B8/%EC%8A%A4%ED%94%84%EB%A7%81%20AOP.md#%EC%8A%A4%ED%94%84%EB%A7%81-aop---%EA%B5%AC%ED%98%84)
-- [스프링 AOP - 포인트컷](https://github.com/HyoJongPark/TIL/edit/main/Spring/%EC%8A%A4%ED%94%84%EB%A7%81%20%ED%95%B5%EC%8B%AC%EC%9B%90%EB%A6%AC/%EA%B3%A0%EA%B8%89%ED%8E%B8/%EC%8A%A4%ED%94%84%EB%A7%81%20AOP.md#%EC%8A%A4%ED%94%84%EB%A7%81aop---%ED%8F%AC%EC%9D%B8%ED%8A%B8%EC%BB%B7)
+- [스프링 AOP - 개념](https://github.com/HyoJongPark/TIL/blob/main/Spring/%EC%8A%A4%ED%94%84%EB%A7%81%20%ED%95%B5%EC%8B%AC%EC%9B%90%EB%A6%AC/%EA%B3%A0%EA%B8%89%ED%8E%B8/%EC%8A%A4%ED%94%84%EB%A7%81%20AOP.md#%EC%8A%A4%ED%94%84%EB%A7%81-aop---%EA%B0%9C%EB%85%90)
+- [스프링 AOP - 구현](https://github.com/HyoJongPark/TIL/blob/main/Spring/%EC%8A%A4%ED%94%84%EB%A7%81%20%ED%95%B5%EC%8B%AC%EC%9B%90%EB%A6%AC/%EA%B3%A0%EA%B8%89%ED%8E%B8/%EC%8A%A4%ED%94%84%EB%A7%81%20AOP.md#%EC%8A%A4%ED%94%84%EB%A7%81-aop---%EA%B5%AC%ED%98%84)
+- [스프링 AOP - 포인트컷](https://github.com/HyoJongPark/TIL/blob/main/Spring/%EC%8A%A4%ED%94%84%EB%A7%81%20%ED%95%B5%EC%8B%AC%EC%9B%90%EB%A6%AC/%EA%B3%A0%EA%B8%89%ED%8E%B8/%EC%8A%A4%ED%94%84%EB%A7%81%20AOP.md#%EC%8A%A4%ED%94%84%EB%A7%81aop---%ED%8F%AC%EC%9D%B8%ED%8A%B8%EC%BB%B7)
 
 # 스프링 AOP - 개념
 
@@ -294,8 +294,6 @@ public class AspectV6Advice {
 > 큰 장점은 코드 작성 의도가 명확하게 들어난다는 점이다. `@Before` 애노테이션을 보는 순간 이 코드는 타겟 실행 전에 한정해서 어떤 일을 하는 코드라는 것을 인지 할 수 있게 될 것이다.
 
 ---
-
-# Untitled
 
 # 스프링AOP - 포인트컷
 
