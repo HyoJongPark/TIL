@@ -5,6 +5,7 @@
 - [스프링 AOP - 개념](https://github.com/HyoJongPark/TIL/blob/main/Spring/%EC%8A%A4%ED%94%84%EB%A7%81%20%ED%95%B5%EC%8B%AC%EC%9B%90%EB%A6%AC/%EA%B3%A0%EA%B8%89%ED%8E%B8/%EC%8A%A4%ED%94%84%EB%A7%81%20AOP.md#%EC%8A%A4%ED%94%84%EB%A7%81-aop---%EA%B0%9C%EB%85%90)
 - [스프링 AOP - 구현](https://github.com/HyoJongPark/TIL/blob/main/Spring/%EC%8A%A4%ED%94%84%EB%A7%81%20%ED%95%B5%EC%8B%AC%EC%9B%90%EB%A6%AC/%EA%B3%A0%EA%B8%89%ED%8E%B8/%EC%8A%A4%ED%94%84%EB%A7%81%20AOP.md#%EC%8A%A4%ED%94%84%EB%A7%81-aop---%EA%B5%AC%ED%98%84)
 - [스프링 AOP - 포인트컷](https://github.com/HyoJongPark/TIL/blob/main/Spring/%EC%8A%A4%ED%94%84%EB%A7%81%20%ED%95%B5%EC%8B%AC%EC%9B%90%EB%A6%AC/%EA%B3%A0%EA%B8%89%ED%8E%B8/%EC%8A%A4%ED%94%84%EB%A7%81%20AOP.md#%EC%8A%A4%ED%94%84%EB%A7%81aop---%ED%8F%AC%EC%9D%B8%ED%8A%B8%EC%BB%B7)
+- [스프링 AOP - 실무 주의사항]()
 
 # 스프링 AOP - 개념
 
@@ -610,3 +611,221 @@ target(hello.aop.member.MemberService)
 
 > `this, target` 포인트컷 지시자는 단독으로 사용되기 보다는 파라미터 파인딩에서 주로 사용된다.
 >
+
+---
+
+# 스프링 AOP - 실무 주의사항
+
+## 프록시와 내부 호출 문제
+
+AOP를 적용하면 스프링은 대상 객체 대신에 프록시를 스프링 빈으로 등록한다. 프록시 객체가 주입되기 때문에 대상 객체를 직접 호출하는 문제는 일반적으로 발생하지 않는다. 하지만 대상 객체의 내부에서 메서드 호출이 발생하면, 프록시를 거치지 않고 대상 객체를 직접 호출하는 문제가 발생한다.
+
+```java
+@Slf4j
+@Component
+public class CallServiceV0 {
+ public void external() {
+	 log.info("call external");
+	 internal(); //내부 메서드 호출(this.internal())
+ }
+
+ public void internal() {
+	 log.info("call internal");
+ }
+}
+```
+
+- `external()` 메서드를 호출하면 내부에서 `internal()` 을 호출한다. 자바 언어에서 메서드를 호출할 때 대상을 지정하지 않으면 앞에 자기 자신의 인스턴스를 뜻하는 `this` 가 붙어 `this.internal()` 과 같다.
+
+```java
+@Slf4j
+@Aspect
+public class CallLogAspect {
+
+ @Before("execution(* hello.aop.internalcall..*.*(..))")
+ public void doLog(JoinPoint joinPoint) {
+	 log.info("aop={}", joinPoint.getSignature());
+ }
+}
+```
+
+```java
+@Import(CallLogAspect.class)
+@SpringBootTest
+class CallServiceV0Test {
+ @Autowired
+ CallServiceV0 callServiceV0;
+
+ @Test
+ void external() {
+	 callServiceV0.external();
+ }
+ @Test
+ void internal() {
+	 callServiceV0.internal();
+ }
+}
+```
+
+- 해당 테스트를 실행해보면 `external()` 실행 시에는 프록시를 호출하고, external() 내부의 `internal()` 을 호출하면 어드바이스가 호출되지 않는다.
+    - 이 문제는 앞서 메서드 호출 시에 대상 객체를 지정하지 않으면 `this` , 즉 자기 자신을 가리키는 자바 언어의 특성 때문이다.
+- `internal()` 만 별도로 실행하면 정상 작동한다.
+
+<img width="604" alt="Untitled" src="https://user-images.githubusercontent.com/75190035/161968821-24950279-33eb-47eb-bf3c-d55e05fbb89c.png">
+
+> **프록시 방식의 AOP 한계**
+> 
+> 
+> 스프링은 프록시 방식의 AOP를 사용한다. 프록시 방식의 AOP는 메서드 내부 호출에 프록시를 적용할 수 없다.
+> 
+
+> 참고
+> 
+> 
+> 실제 코드에 AOP를 직접 적용하는 AspectJ를 사용하면 이런 문제가 발생하지 않는다. 프록시를 통하는 것이 아니라 해당 코드에 직접 AOP 적용 코드가 붙어 있기 때문에 내부 호출과 무관하게 AOP를 적용할 수 있다.
+> 
+> 하지만 로드 타임 위빙 등을 사용해야 하는데, 설정이 복잡하고, JVM 옵션을 주어야 한다는 부담이 있다. 이런 이유로 AspectJ를 직접 사용하는 방법은 잘 사용하지 않는다.
+> 
+
+### 대안1. 자기 자신 주입
+
+```java
+@Slf4j
+@Component
+public class CallServiceV1 {
+ private CallServiceV1 callServiceV1;
+
+ @Autowired
+ public void setCallServiceV1(CallServiceV1 callServiceV1) {
+	 this.callServiceV1 = callServiceV1;
+ }
+
+ public void external() {
+	 log.info("call external");
+	 callServiceV1.internal(); //외부 메서드 호출
+ }
+ public void internal() {
+	 log.info("call internal");
+ }
+}
+```
+
+- 수정자를 통해서 자기 자신을 주입받는다. 스프링에서 AOP가 적용된 대상을 의존관계 주입 받으면 주입받은 대상은 실제 자신이 아닌 프록시가 된다.
+    - 이 경우 생성자 주입시에 오류가 발생한다. 본인을 생성하면서 주입해야 하기 때문에 순환 사이클이 만들어진다. 수정자 주입 같은 경우는 스프링이 생성된 이후에 주입할 수 있기 때문에 오류가 발생하지 않는다.
+- 주입 받은 객체를 사용해서 `external()` 내부에서 `callServiceV1.internal()` 처럼 호출하면, 프록시를 사용한다.
+
+<img width="608" alt="Untitled 1" src="https://user-images.githubusercontent.com/75190035/161968880-1e946a8d-73db-4d6e-9a07-1bdf4fedd798.png">
+
+> 주의
+> 
+> 
+> 스프링 부트 2.6부터는 순환 참조를 기본적으로 금지한다.
+> 
+> 이 문제를 해결하려면 `application.properties` 에 다음을 추가해야 한다.
+> 
+> `spring.main.allow-circular-references=true` 
+> 
+
+### 대안2. 지연 조회
+
+지연 조회를 사용하면 생성자 주입을 사용해서 위 작업을 수행할 수 있다.
+
+```java
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class CallServiceV2 {
+ private final ObjectProvider<CallServiceV2> callServiceProvider;
+
+ public void external() {
+	 log.info("call external");
+	 CallServiceV2 callServiceV2 = callServiceProvider.getObject();
+	 callServiceV2.internal(); //외부 메서드 호출
+ }
+ public void internal() {
+	 log.info("call internal");
+ }
+}
+```
+
+- `ObjectProvider` 는 객체를 스프링 컨테이너에서 조회하는 것을 스프링 빈 생성 시점이 아니라 실제 객체를 사용하는 시점으로 지연할 수 있다.
+- `callServiceProvider.getObject()` 를 호출하는 시점에 스프링 컨테이너에서 빈을 조회한다. 여기서는 자기 자신을 주입 받는 것이 아니기 때문에 순환 사이클이 발생하지 않는다.
+
+### 대안3. 구조 변경
+
+앞선 방법들은 자기 자신을 주입하거나 또는 `Provider` 를 사용해야 하는 것 처럼 조금 어색한 모습을 만들었다.
+
+가장 나은 대안은 구조를 변경하는 것이다.
+
+```java
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class CallServiceV3 {
+ private final InternalService internalService;
+ public void external() {
+	 log.info("call external");
+	 internalService.internal(); //외부 메서드 호출
+ }
+}
+```
+
+- 내부 호출 메서드인 `internal()`을 별도의 `InternalService` 로 분리했다.
+- 여기서 구조를 변경한다는 것은 단순 분리 뿐만 아니라 여러가지 방법을 의미한다
+
+<img width="608" alt="Untitled 2" src="https://user-images.githubusercontent.com/75190035/161968923-e36fc290-6f1f-4a66-8288-735f8f7cbe62.png">
+
+---
+
+## 프록시 기술과 한계 - 타입 캐스팅
+
+JDK 동적 프록시와 CGLIB를 사용해서 AOP 프록시를 만드는 방법에는 각각의 장단점이 있다.
+
+### **JDK 동적 프록시 한계**
+
+<img width="607" alt="Untitled 3" src="https://user-images.githubusercontent.com/75190035/161968950-281e8727-52c2-4d50-b09a-857cff49ae30.png">
+
+- JDK 동적 프록시는 인터페이스를 기반으로 프록시를 생성하기 떄문에 `MemberService` 인터페이스를 기반으로 프록시를 생성한다.
+
+<img width="607" alt="Untitled 4" src="https://user-images.githubusercontent.com/75190035/161968970-37a4caa6-d731-45da-ac29-8ce33ebbb93a.png">
+
+- 여기에서 구체타입인 `MemberServiceImpl` 타입으로 캐스팅하려고 하면, 예외가 발생한다.
+    - JDK 동적 프록시는 인터페이스를 기반으로 프록시를 생성하기 때문에 인터페이스의 구현체가 무엇인지는 전혀 알지 못하고, 그것으로 캐스팅 하려고 해도 예외가 발생한다.
+        - `ClassCastException.class` 예외가 발생
+- CGLIB 프록시는 구체타입을 기반으로 프록시를 생성하기 때문에 예외가 발생하지 않는다.
+
+---
+
+## 프록시 기술과 한계 - 의존관계 주입
+
+**예제 코드**
+
+```java
+@Import(ProxyDIAspect.class)
+public class ProxyDITest {
+ @Autowired MemberService memberService; //JDK 동적 프록시 OK, CGLIB OK
+ @Autowired MemberServiceImpl memberServiceImpl; //JDK 동적 프록시 X, CGLIB OK
+
+ @Test
+ void go() {
+	 log.info("memberService class={}", memberService.getClass());
+	 log.info("memberServiceImpl class={}", memberServiceImpl.getClass());
+	 memberServiceImpl.hello("hello");
+ }
+}
+```
+
+### **JDK 동적 프록시 한계**
+
+```
+BeanNotOfRequiredTypeException: Bean named 'memberServiceImpl' is expected to
+be of type 'hello.aop.member.MemberServiceImpl' but was actually of type
+'com.sun.proxy.$Proxy54'
+```
+
+<img width="607" alt="Untitled 5" src="https://user-images.githubusercontent.com/75190035/161969009-cc9ae875-36ee-454e-9877-1783b96307d5.png">
+
+- 예제 코드를 JDK 동적 프록시를 사용해서 실행하면 예외가 발생한다.
+- `MemberServiceImpl` 에 주입되길 원하는 타입은 `hello.aop.member.MemberServiceImpl` 지만 실제로는 프록시인 `com.sun.proxy.$Proxy54` 가 주입된다.
+    - 여기서 JDK 동적 프록시는 인터페이스 기반이기 때문에 타입 예외가 발생한다.
+- CGLIB 프록시는 구체타입을 기반으로 프록시를 생성하기 때문에 자식 타입, 부모 타입 모두에 의존관계 주입을 해도 예외가 발생하지 않는다.
