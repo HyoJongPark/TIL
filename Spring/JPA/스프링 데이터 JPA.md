@@ -267,3 +267,82 @@ public String list(Pageable pageable, Model model) {
     - 변경하고 싶다면, `@PageableDefault` 애노테이션을 사용해 옵션을 조정한다.
 
 ---
+
+# 스프링 데이터 JPA가 사용하는 구현체
+
+스프링 데이터 JP가 제공하는 공통 인터페이스는 `SimpleJpaRepository` 클래스가 구현한다.
+
+**SimpleJpaRepository.java**
+
+```java
+@Repository
+@Transactional(readOnly=true)
+public class SimpleJpaRepository<T, ID extends Serializable> 
+	implements JpaRepository<T, ID>, JpaSpecificationExecutor<T> {
+
+	@Transactional
+	public <S extends T> save(S entity) {
+		if (entityInformation.isNew(entity) {
+			em.persist(entity);
+		} else {
+			return em.merge(entity);
+		}
+	}
+...
+}
+```
+
+- `@Repository` 적용 : JPA 예외를 스프링이 추상화한 예외로 변환한다.
+- `@Transactional` 트랜잭션 적용 : JPA의 모든 변경은 트랜잭션에서 이루어져야 하기 때문에 트랜잭션 처리한다.
+- `save()` : 저장할 엔티티가 새로운 엔티티면 저장(`persist` )하고, 이미 있다면 병합(`merge` )한다.
+    - 새로운 엔티티 판단 전략
+        - 새로운 엔티티를 판단하는 기본 전략은 식별자가 객체일 때는 `null` 인지 확인하고, 자바 기본 타입일 때는 0인지 확인한다.
+        - `Persistable` 인터페이스를 구현함으로써 판단 로직을 구현할 수도 있다.
+
+---
+
+# 스프링 데이터 JPA와 QueryDSL 통합
+
+스프링 데이터 JPA는 2가지 방법으로 QueryDSL을 지원한다.
+
+- `QueryDslPredicateExecutor`
+- `QueryDslRepositorySupport`
+
+### QueryDslPredicateExecutor 사용
+
+```java
+public interface MemberRepository 
+	extends JpaRespository<Member, Long>, QueryDslPredicateExecutor<Member> {}
+```
+
+- `QueryDslPredicateExecutor` 를 리포지토리에 상속받아 사용할 수 있다.
+- join, fetch 를 사용할 수 없다. 따라서 QueryDSL이 제공하는 다양한 기능을 사용하려면 JPAQuery를 직접 사용하거나 스프링 데이터  JPA가 제공하는 `QueryDslRepositorySupport` 를 사용해야 한다.
+
+### QueryDslRepositorySupport 사용
+
+QueryDSL의 모든 기능을 사용하려면 JPAQuery 객체를 직접 생성해서 사용하면 된다. 이때 스프링 데이터 JPA가 제공하는 `QueryDslRepositorySupport` 를 상속받아 사용하면 더 편리하게 QueryDSL을 사용할 수 있다.
+
+```java
+public class OrderRepositoryCustomImpl extends QueryDslRepositorySupport 
+	implements OrderRepositoryCustom {
+	public OrderRepositoryCustomImpl() {
+		super(Order.class);
+	}
+
+	@Override
+	public List<Order> search(OrderSearch orderSearch) {
+		QOrder order = QOrder.order;
+		QMember member = QMember.member;
+
+		JPQLQuery query = from(order);
+	
+		if (StringUtils.hasText(orderSearch.getMemberName())) {
+			query.leftJoin(order.member, member)
+				.where(member.name.contains(orderSearch.getMemberName()));
+		}
+	...
+}
+```
+
+- 스프링 데이터 JPA가 제공하는 공통 인터페이스는 직접 구현할 수 없기 때문에 사용자 정의 리포지토리에 `QueryDslRepositorySupport` 를 상속한다.
+- 생성자에서 `QueryDslRepositorySupport` 에 엔티티 클래스 정보를 넘겨줘야 한다.
