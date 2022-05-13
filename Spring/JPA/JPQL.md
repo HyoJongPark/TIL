@@ -439,4 +439,240 @@ select t from Team t
 
 ---
 
-#
+# 다형성 쿼리
+
+JPQL로 부모 엔티티를 조회하면 자식 엔티티도 함께 조회된다. 물론 조회 전략에 따라 실행되는 SQL도 다르다.
+
+- 단일 테이블 전략(`SINGLE_TABLE` ) 일 때 SQL
+
+```sql
+select * from item
+```
+
+- 조인 전략(`JOINED` ) 일 때 SQL
+
+```sql
+select
+	i.ITEM_ID, i.DTYPE, i.name, i.price, i.stockQuantity,
+	b.author, b.isbn,
+	a.artist, a.etc,
+	m.actor, m.director
+from
+	Item i 
+		left outer join Book b on i.ITEM_ID=b.ITEM_ID
+		left outer join Album a on i.ITEM_ID=a.ITEM_ID
+		left outer join Movie m on i.ITEM_ID=m.ITEM_ID
+```
+
+### TYPE
+
+`TYPE` 은 엔티티의 상속 구조에서 조회 대상을 특정 자식 타입으로 한정할 때 주로 사용한다.
+
+```sql
+select i from Item i where type(i) IN (Book, Movie)
+```
+
+- Item 중에 Book, Movie 를 조회하는 JPQL
+
+### TREAT
+
+`TREAT` 는 JPA 2.1에 추가된 기능이며, 자바의 타입 캐스팅과 비슷하다. 상속 구조에서 부모 타입을 특정 자식 타입으로 다룰 때 사용한다.
+
+JPA 표준은 `FROM` , `WHERE` 절에서 사용할 수 있지만, 하이버네이트는 `SELECT` 절에서도 사용하는 것을 허용한다.
+
+```sql
+select i from Item i where treate(i as Book).author = 'kim'
+```
+
+- 부모 타입인 Item 을 자식 타입인 Book으로 다룬다. 따라서 author 필드에도 접근 가능하다.
+
+---
+
+# 사용자 정의 함수
+
+JPA 2.1 부터 사용자 정의 함수를 지원한다. 하이버네이트 구현체를 사용하면 방언 클래스를 상속해서 구현하고 사용할 데이터베이스 함수를 미리 등록해야 한다.
+
+**방언 클래스 상속**
+
+```java
+public class MyH2Dialect extends H2Dialect {
+	public MyH2Dialect() {
+		registerFunction("group_concat", 
+			new StandardSQLFuncion("group_concat", StandardBasicTypes.STRING));
+	}
+}
+```
+
+- 구현한 방언 클래스는 스프링 빈으로 등록해야 동작한다.
+
+**사용**
+
+```sql
+select function('group_concat', i.name) from item i
+
+//하이버네이트를 사용하면 축약 가능
+select group_concat(i.name) from item i
+```
+
+---
+
+# 기타 정리
+
+- enum 은 `=` 비교 연산만 지원한다.
+- 임베디드 타입은 비교를 지원하지 않는다.
+
+### EMPTY STRING
+
+JPA 표준은 ‘’을 길이 0 인 `Empty String` 으로 정했지만 데이터베이스에 따라 NULL로 사용하는 데이터도 있으므로 확인하고 사용해야 한다.
+
+### NULL 정의
+
+- 조건을 만족하는 데이터가 하나도 없으면 NULL 이다.
+- NULL은 알 수 없는 값이다. NULL 과의 모든 수학적 계산 결과는 NULL이다.
+    - `Null == Null` 은 알 수 없는 값
+    - `Null is Null` 은 참
+
+---
+
+# 엔티티 직접 사용
+
+### 기본 키 값
+
+객체 인스턴스는 참조 값으로 식별하고 테이블 로우는 기본 키 값으로 식별한다.
+
+따라서 JPQL에서 엔티티 객체를 직접 사용하면 SQL에서는 해당 엔티티의 기본 키 값을 사용한다.
+
+- JPQL
+
+```sql
+select count(m.id) from Member m //엔티티의 아이디 사용
+select count(m) from Member m //엔티티 직접 사용
+```
+
+- 실행된 SQL
+
+```sql
+select count(m.id) as cnt from Member m
+```
+
+JPQL 사용 시에 엔티티의 아이디를 사용하던, 직접 사용하던 결국 SQL에서는 엔티티의 기본 키를 사용한다. 따라서 실행된 SQL은 같다.
+
+### 외래 키 값
+
+- JPQL
+
+```java
+Team team = em.find(Team.class, 1L);
+
+List result1 = 
+	em.createQuery("select m from Member m where m.team = :team")
+		.setParameter("team", team)
+		.getResultList();
+
+List result2 = 
+	em.createQuery("select m from Member m where m.team.id = :teamId")
+		.setParameter("teamId", 1L)
+		.getResultList();
+```
+
+- 실행된 SQL
+
+```sql
+select m.* from Member m where m.team_id=?
+```
+
+예제에서 `m.team.id` 를 호출할 때 묵시적 조인이 일어날 것 같지만, `Member` 테이블이 이미 `team_id` 외래키를 가지고 있기 때문에 묵시적 조인은 일어나지 않는다.
+
+---
+
+# Named 쿼리: 정적 쿼리
+
+JPQL 쿼리는 크게 동적 쿼리와 정적 쿼리로 나눌 수 있다.
+
+- 동적 쿼리 : `em.createQuery("...")` 처럼 JPQL을 문자로 완성해서 직접 넘기는 것을 동적 쿼리라 한다. 런타임에 특정 조건에 따라 JPQL을 동적으로 구성할 수 있다.
+- 정적 쿼리 : 미리 정의한 쿼리에 이름을 부여해서 필요할 때 사용할 수 있는데 이것을 **Named 쿼리**라 한다. Named 쿼리는 한 번 정의하면 변경할 수 없는 정적인 쿼리다.
+
+Named 쿼리는 애플리케이션 로딩 시점에 JPQL 문법을 체크하고 미리 파싱해 둔다. 따라서 오류를 빨리 확인할 수 있고, 사용 시점에는 파싱된 결과를 재사용하므로 성능상 이점도 있다. 또한 정적인 SQL이 생성되므로 데이터베이스의 조회 성능 최적화에도 도움을 준다.
+
+### Named 쿼리를 애노테이션에 정의
+
+Named 쿼리는 `@NamedQuery` 애노테이션을 사용해 정의할 수 있다. 만약 둘 이상의 Named 쿼리를 정의하려면 `@NamedQueries` 애노테이션을 사용한다.
+
+`@NamedQuery` 애노테이션
+
+```java
+@Target({TYPE})
+public @interface NamedQuery {
+	String name();  //Named 쿼리 이름(필수)
+	String query(); //JPQL 정의 (필수)
+	LockModeType lockMode default NONE; //쿼리 실행시 락 모드를 설정
+	QueryHint[] hints() default {}; //JPA 구현체에 쿼리 힌트를 줄 수 있다.
+```
+
+**정의 - 하나의 Named 쿼리**
+
+```java
+@Entity
+@NamedQuery(
+	name = "Member.findByUsername",
+	query= "select m from Member m where m.username = :username")
+public class member {...}
+```
+
+- `name` 속성에 이름을 부여한다.
+    - `Member.~~` 이라고 정의했는데 Named 쿼리는 영속성 유닛 단위로 관리되므로 충돌을 방지하기 위해 엔티티 이름을 준 것이다. 관리상 이점도 있다.
+
+**정의 - 둘 이상의 Named 쿼리**
+
+```java
+@Entity
+@NamedQueries({
+	@NamedQuery(
+		name = "Member.findByUsername",
+		query= "select m from Member m where m.username = :username")
+	@NamedQuery(
+		name = "Member.findByAge",
+		query= "select m from Member m where m.age = :age")
+})
+public class Member {...}
+```
+
+**사용**
+
+```java
+List<Member> result = 
+	em.createQuery("Member.findByUsername", Member.class)
+		.setParameter("username", "Member1")
+		.getResultList();
+```
+
+### Named 쿼리를 XML에 정의
+
+JPA 에서 애노테이션으로 작성할 수 있는 것은 XML로도 가능하다. 애노테이션이 직관적이고 편하지만 Named 쿼리 작성에서 XML이 편할 수 있다.
+
+또한 XML과 애노테이션에 같은 설정이 있으면 **XML이 우선권을 가진다.**
+
+**XML 정의**
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<entity-mappings xmlns="http://xmlns.jcp.org/xml/ns/persistence/orm"
+	version="2.1">
+	<named-query name="Member.findByUsername">
+		<query><CDATA[
+			select m from Member m
+			where m.username = :username
+		]></query>
+	</named-query>
+</entity-mappings>
+```
+
+XML을 정의한 후에도 해당 xml을 인식하도록 `META/persistence.xml` 에 다음 코드를 추가해야 한다.
+
+**XML 등록**
+
+```xml
+<persistence-unit name="jpabook">
+	<mapping-file>META-INF/namedQuery.xml</mapping-file>
+...
+```
