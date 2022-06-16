@@ -280,7 +280,7 @@
 > 
 > - 블로그
 > 
-> [https://blog.naver.com/bisu1532/221612466313](https://suhwanc.tistory.com/177?category=879656)
+> [https://blog.naver.com/bisu1532/221612466313](https://blog.naver.com/bisu1532/221614412152)
 > 
 > [https://suhwanc.tistory.com/176?category=879656](https://suhwanc.tistory.com/177?category=879656)
 > 
