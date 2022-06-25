@@ -283,6 +283,42 @@ void signal(semaphore *S){
 
 ---
 
+## 7. 모니터_Monitors
+
+세마포가 프로세스 간의 동기화를 위해서 편리하고 효과적으로 쓰일 수 있지만, 자칫 잘못 사용하면 발견하기 어려운 타이밍 오류를 야기할 수 있다.
+
+현재에는 모니터라는 동기화 도구를 주로 사용하며, 이는 좀 더 고수준의 동기화 기능을 제공한다.
+
+### 7.1 모니터의 특징
+
+<img width="485" alt="Untitled" src="https://user-images.githubusercontent.com/75190035/175763060-f7cc0492-0b27-4d59-ae75-2df5a50c97e6.png">
+
+- 조건변수 - `condition`
+    - 모니터에 사용하는 특수한 데이터 타입
+    - 모니터 내부에 포함되며, 모니터 내부에서만 접근 가능하다.
+- 연산
+    - `condition` 형 변수에 호출될 수 있는 연산은 오직 `wait()`, `signal()` 이다.
+    - `x.wait()`를 호출한 프로세스는 다른 프로세스가 `x.signal()` 을 호출할 때까지 일시 중지 된다.
+    - `x.signal()` 연산은 정확히 하나의 일시 중지 프로세스를 재개한다. 만약 없다면, 아무 효과가 없다.
+- 만약 condition x와 연관된 일시 중지된 프로세스 Q가 있고, `x.signal()` 연산이 프로세스 P에 의해 호출될 때 두 가지 가능성이 존재한다.
+    1. signal and wait: P는 Q가 모니터를 떠날 때까지 기다리거나 또는 다른 조건을 기다린다.
+    2. signal and continue: Q는 P가 모니터를 떠날 때까지 기다리거나 또는 다른 조건을 기다린다.
+    - 절충안: 스레드 P가 `signal()` 연산을 실행하면, 즉시 모니털ㄹ 떠난다. 따라서 Q가 즉시 재개된다.
+    - 어느 것이든 옵션 채택을 정당화하는 근거가 있다.
+
+### 7.2 모니터 내에서 프로세스 수행 재개_Resuming Processes within a Monitor
+
+- 앞서 `signal()` 을 호출하면 일시정지된 프로세스 중 하나를 호출한다고 했다. 이 때 재개될 프로세스는 어떻게 선정할 것인가?
+- **FCFS**
+    - 가장 간단한 방법으로, 가장 오래 기다린 프로세스가 먼저 깨어단다.
+    - 그러나 많은 경우 이런 간단한 스케줄링 기법은 충분하지 않다.
+- **condition-wait 구조물**
+    - 이 구조물은 정수 수식 c를 가지고, `x.wait()` 연산이 호출될 때 값이 계산된다.
+    - c는 우선순위 번호(priority number)라고 불리며 일시 중지 되는 프로세스의 이름과 함께 저장된다.
+    - `x.signal()` 이 호출되면 가장 작은 우선순위 번호를 가진 프로세스가 다음번에 수행 재개된다.
+
+---
+
 > 참고
 > 
 > - 책
@@ -294,4 +330,8 @@ void signal(semaphore *S){
 > [https://suhwanc.tistory.com/180?category=879656](https://suhwanc.tistory.com/180?category=879656)
 > 
 > [https://will-behappy.tistory.com/21?category=808600](https://will-behappy.tistory.com/21?category=808600)
+> 
+> [https://velog.io/@codemcd/운영체제OS-11.-모니터](https://velog.io/@codemcd/%EC%9A%B4%EC%98%81%EC%B2%B4%EC%A0%9COS-11.-%EB%AA%A8%EB%8B%88%ED%84%B0)
+> 
+> [https://blog.naver.com/kgr2626/222118655167](https://blog.naver.com/kgr2626/222118655167)
 >
