@@ -7,9 +7,9 @@ package sort;
  * 추가적 공간을 소모하지 않아 효율적이며, 앞선 요소가 정렬되었을 경우 비교를 수행하지 않기 때문에 비교 횟수에 대한 기대값이 적다.
  * 때문에, 버블, 선택 정렬과 같은 시간복잡도를 가지지만, 그 중에서는 빠른 정렬을 보인다.
  * <p>
- * 시간복잡도:
+ * 시간복잡도: N(N - 1) / 2
  * 최선: O(N) [정렬된 상태의 경우 삽입 위치 탐색이 없음]
- * 최악: O(N^2) == N(N - 1) / 2
+ * 최악: O(N^2)
  * <p>
  * 공간복잡도: O(N)
  * type: 안정 정렬
@@ -27,6 +27,27 @@ public class InsertionSort {
             }
 
             arr[j + 1] = current;
+        }
+    }
+
+    /**
+     * used for Shell Sort
+     *
+     * @param arr
+     * @param start
+     * @param gap
+     */
+    public static void sort(Student[] arr, int start, int gap) {
+        for (int i = start + gap; i < arr.length; i += gap) {
+            Student current = arr[i];
+            int j = i - gap;
+
+            while (j >= start && current.score < arr[j].score) {
+                arr[j + gap] = arr[j];
+                j -= gap;
+            }
+
+            arr[j + gap] = current;
         }
     }
 }
